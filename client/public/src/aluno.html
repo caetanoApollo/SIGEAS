@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIGEAS - Aluno</title>
+    <link rel="stylesheet" href="./css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <header class="topbar">
+        <div class="container" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+            <h1>SIGEAS - Painel do Aluno</h1>
+            <p id="alunoName" style="color:#fff; font-size:1rem;"></p>
+            <button id="logoutBtn" class="btn btn-danger">Sair</button>
+        </div>
+    </header>
+
+    <main class="content">
+        <section class="card">
+            <h2>Detalhes do Aluno</h2>
+            <div class="card-min" style="margin-bottom: 1rem;">
+                <p><strong>Nome:</strong> <span id="alunoNome"></span></p>
+                <p><strong>Email:</strong> <span id="alunoEmail"></span></p>
+                <p><strong>Data de Nascimento:</strong> <span id="alunoDataNascimento"></span></p>
+                <p><strong>Endereço:</strong> <span id="alunoEndereco"></span></p>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2 id="alunoTurmaTitle"></h2>
+            <div id="alunoTurmasList"></div>
+        </section>
+
+        <section class="card">
+            <h2>Presenças</h2>
+            <div id="presencas"></div>
+        </section>
+
+        <section class="card">
+            <h2>Notas</h2>
+            <div id="notasAluno"></div>
+        </section>
+    </main>
+    <script src="./js/main.js"></script>
+    <script src="./js/aluno.js"></script>
+</body>
+
+</html>

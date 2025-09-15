@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIGEAS - Login</title>
+    <link rel="stylesheet" href="./css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+</head>
+
+<body class="login-page">
+    <main class="login-card">
+        <h1 class="logo">SIGEAS</h1>
+        <p class="subtitle">Sistema de Gestão de Aulas</p>
+        <form id="loginForm">
+            <label for="username">Usuário</label>
+            <input type="text" id="username" placeholder="Digite seu usuário" required>
+
+            <label for="password">Senha</label>
+            <input type="password" id="password" placeholder="Digite sua senha" required>
+
+            <p id="loginError"></p>
+
+            <button type="submit" class="btn btn-primary btn-lg" style="margin-top: 1.5rem;">Entrar</button>
+        </form>
+    </main>
+    <script src="./js/main.js"></script>
+</body>
+
+</html>

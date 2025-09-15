@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIGEAS - Professor</title>
+    <link rel="stylesheet" href="./css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+
+<body>
+    <div class="dashboard-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>SIGEAS</h2>
+                <p id="profName"></p>
+            </div>
+            <nav class="sidebar-nav">
+                <ul id="sidebarMenu">
+                    <li data-view="minhasTurmas" class="active"><i class="fa-solid fa-users"></i> Minhas Turmas</li>
+                    <li data-view="chamada"><i class="fa-solid fa-clipboard-user"></i> Registrar Chamada</li>
+                    <li data-view="notas"><i class="fa-solid fa-pencil"></i> Lançar Notas</li>
+                </ul>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="logoutBtn" class="btn btn">Sair</button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="main-content-header">
+                <h1>Painel do Professor</h1>
+            </header>
+
+            <section id="view-minhasTurmas" class="view">
+                <h2>Minhas Turmas</h2>
+                <div id="profTurmas" class="card-grid"></div>
+            </section>
+
+            <section id="view-chamada" class="view hidden">
+                <div class="card">
+                    <div id="chamadaArea"></div>
+                </div>
+            </section>
+
+            <section id="view-notas" class="view hidden">
+                <div class="card">
+                    <div id="notasArea"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="./js/main.js"></script>
+    <script src="./js/professor.js"></script>
+</body>
+
+</html>
