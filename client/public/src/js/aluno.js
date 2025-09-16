@@ -20,13 +20,11 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        // Exibir informações do aluno
         Utils.el("alunoNome").textContent = aluno.nome;
         Utils.el("alunoEmail").textContent = aluno.email;
         Utils.el("alunoDataNascimento").textContent = aluno.dataNascimento || "N/A";
         Utils.el("alunoEndereco").textContent = aluno.endereco || "N/A";
 
-        // Turma
         const turma = data.turmas.find(t => t.id === aluno.turmaId);
         if (turma) {
             Utils.el("alunoTurmaTitle").textContent = `Matriculado em: ${turma.nome}`;
@@ -40,7 +38,6 @@ document.addEventListener("DOMContentLoaded", () => {
             Utils.el("alunoTurmasList").innerHTML = "";
         }
 
-        // Presenças
         const pWrap = Utils.el("presencas");
         pWrap.innerHTML = "";
         const alunoPresencas = data.presencas.filter(p => p.alunoId === alunoId && p.turmaId === aluno.turmaId);
@@ -60,7 +57,6 @@ document.addEventListener("DOMContentLoaded", () => {
             pWrap.innerHTML += `<p class="small-note">Comparecimento: ${presentes}/${total} (${perc}%)</p>`;
         }
 
-        // Notas
         const notasWrap = Utils.el("notasAluno");
         notasWrap.innerHTML = "";
         const alunoNotas = data.notas.filter(n => n.alunoId === alunoId && n.turmaId === aluno.turmaId);

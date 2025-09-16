@@ -4,7 +4,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const modal = Utils.el("modal");
     const modalContent = Utils.el("modalContent");
 
-    /* Helper to ensure only admins access this page */
     (function ensureAdmin() {
         const user = JSON.parse(sessionStorage.getItem("sigeas_user") || "null");
         if (!user || user.role !== "admin") {
@@ -14,7 +13,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     })();
 
-    /* ------- Navigation ------- */
     function showView(view) {
         Utils.qa(".view").forEach(v => v.classList.add("hidden"));
         const target = Utils.el(`view-${view}`);
@@ -22,7 +20,6 @@ document.addEventListener("DOMContentLoaded", () => {
             target.classList.remove("hidden");
         }
         updateSidebar(view);
-        // Render tables on demand
         if (view === "turmas") renderTurmas();
         else if (view === "professores") renderProfessores();
         else if (view === "alunos") renderAlunos();
@@ -36,14 +33,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    /* ------- Dashboard counts ------- */
     function renderCounts() {
         Utils.el("countTurmas").textContent = data.turmas.length;
         Utils.el("countProfessores").textContent = data.professores.length;
         Utils.el("countAlunos").textContent = data.alunos.length;
     }
 
-    /* ------- Tables rendering ------- */
     function renderTurmas() {
         const tbody = Utils.q("#turmasTable tbody");
         tbody.innerHTML = "";
@@ -107,7 +102,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    /* ------- CRUD & Modals ------- */
     function closeModal() {
         modal.classList.add("hidden");
         modalContent.innerHTML = "";
@@ -116,7 +110,6 @@ document.addEventListener("DOMContentLoaded", () => {
     function saveAndRefresh() {
         saveData(data);
         renderCounts();
-        // Re-render the current visible view
         const currentView = Utils.q(".sidebar li.active").dataset.view;
         if (currentView === "turmas") renderTurmas();
         else if (currentView === "professores") renderProfessores();
@@ -267,7 +260,6 @@ document.addEventListener("DOMContentLoaded", () => {
         saveAndRefresh();
     }
 
-    /* ------- Initialization ------- */
     function initAdmin() {
         renderCounts();
         showView("dashboard");

@@ -128,7 +128,6 @@ document.addEventListener("DOMContentLoaded", () => {
         table.innerHTML = `<thead><tr><th>Aluno</th><th>Bimestre</th><th>Disciplina</th><th>Nota</th></tr></thead>`;
         const tbody = document.createElement("tbody");
         alunos.forEach(a => {
-            // Assuming 2 bimestres for simplicity, can be dynamic
             for (let b = 1; b <= 2; b++) {
                 const tr = document.createElement("tr");
                 const notaObj = data.notas.find(n => n.alunoId === a.id && n.turmaId === turmaId && n.bimestre === b) || { valor: "", disciplina: turma.nome }; // Default disciplina to turma name
@@ -166,7 +165,6 @@ document.addEventListener("DOMContentLoaded", () => {
                         data.notas.push({ alunoId: alunoId, turmaId: turmaId, disciplina: disciplina, bimestre: bim, valor: valor });
                     }
                 } else if (existingIndex !== -1) {
-                    // If value or disciplina is empty, remove the note
                     data.notas.splice(existingIndex, 1);
                 }
             });
@@ -177,7 +175,6 @@ document.addEventListener("DOMContentLoaded", () => {
         showProfessorView("notas");
     }
 
-    /* Event delegation for navigation and turma actions */
     document.addEventListener("click", (e) => {
         const btn = e.target.closest("button[data-action]");
         if (btn) {
@@ -196,7 +193,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    /* Init */
     renderTurmasProfessor();
     showProfessorView("minhasTurmas");
 });

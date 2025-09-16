@@ -1,4 +1,3 @@
-/* -------------------- MOCK DATA -------------------- */
 const MOCK_USERS = [
     { username: 'admin', password: 'admin123', role: 'admin', name: 'Beatriz (Admin)' },
     { username: 'ricardo', password: 'prof123', role: 'professor', name: 'Ricardo (Professor)', id: 'p-1' },
@@ -42,10 +41,8 @@ const INITIAL_DATA = {
     ]
 };
 
-/* -------------------- STORAGE HELPERS -------------------- */
 const STORAGE_KEY = 'sigeas_demo_data';
 
-// Alteração aqui: usa a sintaxe de constante para definir as funções
 const loadData = () => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
@@ -59,7 +56,6 @@ const saveData = (data) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 
-/* -------------------- AUTH (MOCK) -------------------- */
 const auth = (username, password) => {
     const user = MOCK_USERS.find(u => u.username === username && u.password === password);
     if (user) {
@@ -73,7 +69,6 @@ const logout = () => {
     sessionStorage.removeItem('sigeas_user');
 }
 
-/* -------------------- UTILS -------------------- */
 const Utils = {
     el: (id) => document.getElementById(id),
     q: (selector, scope = document) => scope.querySelector(selector),
@@ -87,7 +82,6 @@ window.SIGEAS = {
     Utils
 };
 
-/* -------------------- PAGE COMMON INITIALIZATION -------------------- */
 document.addEventListener('DOMContentLoaded', () => {
     const loginForm = Utils.el('loginForm');
     if (loginForm) {
