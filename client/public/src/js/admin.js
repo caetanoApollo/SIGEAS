@@ -1,17 +1,31 @@
 document.addEventListener("DOMContentLoaded", () => {
-    const { loadData, saveData, Utils } = window.SIGEAS;
-    let data = loadData();
+    const { Utils } = window.SIGEAS;
     const modal = Utils.el("modal");
     const modalContent = Utils.el("modalContent");
+    let cachedData = {};
+    const API_URL = "http://localhost:4000";
+    const token = Utils.getToken();
 
-    (function ensureAdmin() {
+    (async function ensureAdmin() {
         const user = JSON.parse(sessionStorage.getItem("sigeas_user") || "null");
         if (!user || user.role !== "admin") {
             window.location.href = "./index.html";
         } else {
             Utils.el("currentUserName").textContent = user.name || user.username;
+            await fetchData();
+            showView("dashboard");
         }
     })();
+
+    async function fetchData() {
+        const headers = { "Authorization": `Bearer ${token}` };
+        const [turmas, professores, alunos] = await Promise.all([
+            fetch(`${API_URL}/turmas`, { headers }).then(res => res.json()),
+            fetch(`${API_URL}/professores`, { headers }).then(res => res.json()),
+            fetch(`${API_URL}/alunos`, { headers }).then(res => res.json())
+        ]);
+        cachedData = { turmas, professores, alunos };
+    }
 
     function showView(view) {
         Utils.qa(".view").forEach(v => v.classList.add("hidden"));
@@ -20,7 +34,8 @@ document.addEventListener("DOMContentLoaded", () => {
             target.classList.remove("hidden");
         }
         updateSidebar(view);
-        if (view === "turmas") renderTurmas();
+        if (view === "dashboard") renderCounts();
+        else if (view === "turmas") renderTurmas();
         else if (view === "professores") renderProfessores();
         else if (view === "alunos") renderAlunos();
     }
@@ -34,16 +49,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function renderCounts() {
-        Utils.el("countTurmas").textContent = data.turmas.length;
-        Utils.el("countProfessores").textContent = data.professores.length;
-        Utils.el("countAlunos").textContent = data.alunos.length;
+        Utils.el("countTurmas").textContent = cachedData.turmas.length;
+        Utils.el("countProfessores").textContent = cachedData.professores.length;
+        Utils.el("countAlunos").textContent = cachedData.alunos.length;
     }
 
     function renderTurmas() {
         const tbody = Utils.q("#turmasTable tbody");
         tbody.innerHTML = "";
-        data.turmas.forEach(t => {
-            const prof = data.professores.find(p => p.id === t.professorId);
+        cachedData.turmas.forEach(t => {
+            const prof = cachedData.professores.find(p => p.id === t.professorId);
             const tr = document.createElement("tr");
             tr.innerHTML = `
                 <td>${t.nome}</td>
@@ -63,8 +78,8 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderProfessores() {
         const tbody = Utils.q("#professoresTable tbody");
         tbody.innerHTML = "";
-        data.professores.forEach(p => {
-            const turmas = data.turmas.filter(t => t.professorId === p.id).map(t => t.nome).join(", ") || "<em>—</em>";
+        cachedData.professores.forEach(p => {
+            const turmas = cachedData.turmas.filter(t => t.professorId === p.id).map(t => t.nome).join(", ") || "<em>—</em>";
             const tr = document.createElement("tr");
             tr.innerHTML = `
                 <td>${p.nome}</td>
@@ -84,8 +99,8 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderAlunos() {
         const tbody = Utils.q("#alunosTable tbody");
         tbody.innerHTML = "";
-        data.alunos.forEach(a => {
-            const turma = data.turmas.find(t => t.id === a.turmaId);
+        cachedData.alunos.forEach(a => {
+            const turma = cachedData.turmas.find(t => t.id === a.turmaId);
             const tr = document.createElement("tr");
             tr.innerHTML = `
                 <td>${a.nome}</td>
@@ -107,8 +122,8 @@ document.addEventListener("DOMContentLoaded", () => {
         modalContent.innerHTML = "";
     }
 
-    function saveAndRefresh() {
-        saveData(data);
+    async function saveAndRefresh() {
+        await fetchData();
         renderCounts();
         const currentView = Utils.q(".sidebar li.active").dataset.view;
         if (currentView === "turmas") renderTurmas();
@@ -118,7 +133,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const modalTemplates = {
         turmas: (id) => {
-            const turma = id ? data.turmas.find(t => t.id === id) : { nome: "", curso: "", professorId: "", vagas: 20, descricao: "", horario: "" };
+            const turma = id ? cachedData.turmas.find(t => t.id === id) : { nome: "", curso: "", professorId: "", vagas: 20, descricao: "", horario: "" };
             return `
                 <h3>${id ? "Editar Turma" : "Nova Turma"}</h3>
                 <label>Nome</label>
@@ -128,7 +143,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <label>Professor</label>
                 <select id="mProfessor">
                     <option value="">-- Selecionar --</option>
-                    ${data.professores.map(p => `<option value="${p.id}" ${p.id === turma.professorId ? "selected" : ""}>${p.nome}</option>`).join("")}
+                    ${cachedData.professores.map(p => `<option value="${p.id}" ${p.id === turma.professorId ? "selected" : ""}>${p.nome}</option>`).join("")}
                 </select>
                 <label>Vagas</label>
                 <input id="mVagas" type="number" value="${turma.vagas || 20}">
@@ -143,7 +158,7 @@ document.addEventListener("DOMContentLoaded", () => {
             `;
         },
         professores: (id) => {
-            const p = id ? data.professores.find(x => x.id === id) : { nome: "", email: "", telefone: "", departamento: "" };
+            const p = id ? cachedData.professores.find(x => x.id === id) : { nome: "", email: "", telefone: "", departamento: "" };
             return `
                 <h3>${id ? "Editar Professor" : "Novo Professor"}</h3>
                 <label>Nome</label>
@@ -161,7 +176,7 @@ document.addEventListener("DOMContentLoaded", () => {
             `;
         },
         alunos: (id) => {
-            const a = id ? data.alunos.find(x => x.id === id) : { nome: "", email: "", turmaId: "", dataNascimento: "", endereco: "" };
+            const a = id ? cachedData.alunos.find(x => x.id === id) : { nome: "", email: "", turmaId: "", dataNascimento: "", endereco: "" };
             return `
                 <h3>${id ? "Editar Aluno" : "Novo Aluno"}</h3>
                 <label>Nome</label>
@@ -171,7 +186,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <label>Matricular em</label>
                 <select id="mAturma">
                     <option value="">-- Nenhuma --</option>
-                    ${data.turmas.map(t => `<option value="${t.id}" ${t.id === a.turmaId ? "selected" : ""}>${t.nome}</option>`).join("")}
+                    ${cachedData.turmas.map(t => `<option value="${t.id}" ${t.id === a.turmaId ? "selected" : ""}>${t.nome}</option>`).join("")}
                 </select>
                 <label>Data de Nascimento</label>
                 <input id="mDataNascimento" type="date" value="${a.dataNascimento || ""}">
@@ -196,7 +211,13 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    function handleSave(type, id) {
+    async function handleSave(type, id) {
+        const headers = { "Content-Type": "application/json", "Authorization": `Bearer ${token}` };
+        let body = {};
+        let method = id ? "PUT" : "POST";
+        let endpoint = `${API_URL}/${type}`;
+        if (id) endpoint += `/${id}`;
+
         if (type === "turmas") {
             const nome = Utils.el("mNome").value.trim();
             const curso = Utils.el("mCurso").value.trim();
@@ -208,11 +229,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 alert("Preencha nome e curso.");
                 return;
             }
-            if (id) {
-                Object.assign(data.turmas.find(x => x.id === id), { nome, curso, professorId, vagas, descricao, horario });
-            } else {
-                data.turmas.push({ id: "t-" + Date.now(), nome, curso, professorId, vagas, descricao, horario });
-            }
+            body = { nome, curso, professorId, vagas, descricao, horario };
+            if (!id) body.id = "t-" + Date.now();
         } else if (type === "professores") {
             const nome = Utils.el("mPnome").value.trim();
             const email = Utils.el("mPemail").value.trim();
@@ -222,11 +240,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 alert("Preencha nome e email.");
                 return;
             }
-            if (id) {
-                Object.assign(data.professores.find(x => x.id === id), { nome, email, telefone, departamento });
-            } else {
-                data.professores.push({ id: "p-" + Date.now(), nome, email, telefone, departamento });
-            }
+            body = { nome, email, telefone, departamento };
+            if (!id) body.id = "p-" + Date.now();
         } else if (type === "alunos") {
             const nome = Utils.el("mAnome").value.trim();
             const email = Utils.el("mAemail").value.trim();
@@ -237,33 +252,47 @@ document.addEventListener("DOMContentLoaded", () => {
                 alert("Preencha nome e email.");
                 return;
             }
-            if (id) {
-                Object.assign(data.alunos.find(x => x.id === id), { nome, email, turmaId, dataNascimento, endereco });
-            } else {
-                data.alunos.push({ id: "a-" + Date.now(), nome, email, turmaId, dataNascimento, endereco, presencas: [], notas: [] });
-            }
+            body = { nome, email, turmaId, dataNascimento, endereco };
+            if (!id) body.id = "a-" + Date.now();
         }
-        saveAndRefresh();
-        closeModal();
+
+        try {
+            const response = await fetch(endpoint, { method, headers, body: JSON.stringify(body) });
+            if (response.ok) {
+                alert("Item salvo com sucesso!");
+                await saveAndRefresh();
+                closeModal();
+            } else {
+                const error = await response.json();
+                alert(`Erro ao salvar: ${error.error || response.statusText}`);
+            }
+        } catch (error) {
+            console.error("Erro ao salvar:", error);
+            alert("Erro ao salvar o item. Verifique a conexão com o servidor.");
+        }
     }
 
-    function handleDelete(table, id) {
+    async function handleDelete(type, id) {
         if (!confirm("Deseja realmente excluir este item?")) return;
-        if (table.id === "turmasTable") {
-            data.turmas = data.turmas.filter(t => t.id !== id);
-        } else if (table.id === "professoresTable") {
-            data.turmas.forEach(t => { if (t.professorId === id) t.professorId = null; });
-            data.professores = data.professores.filter(p => p.id !== id);
-        } else if (table.id === "alunosTable") {
-            data.alunos = data.alunos.filter(a => a.id !== id);
+        try {
+            const response = await fetch(`${API_URL}/${type}/${id}`, {
+                method: "DELETE",
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            if (response.ok) {
+                alert("Item excluído com sucesso!");
+                await saveAndRefresh();
+            } else {
+                const error = await response.json();
+                alert(`Erro ao excluir: ${error.error || response.statusText}`);
+            }
+        } catch (error) {
+            console.error("Erro ao excluir:", error);
+            alert("Erro ao excluir o item. Verifique a conexão com o servidor.");
         }
-        saveAndRefresh();
     }
 
     function initAdmin() {
-        renderCounts();
-        showView("dashboard");
-
         Utils.qa(".sidebar li").forEach(item => {
             item.addEventListener("click", () => {
                 const view = item.getAttribute("data-view");
@@ -286,7 +315,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (action === "edit") {
                 openModal(type, id);
             } else if (action === "delete") {
-                handleDelete(table, id);
+                handleDelete(type, id);
             }
         });
 

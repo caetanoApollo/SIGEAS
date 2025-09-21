@@ -1,16 +1,28 @@
 document.addEventListener("DOMContentLoaded", () => {
-    const { loadData, saveData, Utils } = window.SIGEAS;
-    let data = loadData();
+    const { Utils } = window.SIGEAS;
+    const API_URL = "http://localhost:4000";
+    const token = Utils.getToken();
+    let cachedData = {};
+    let professorUser;
 
-    (function ensureProfessor() {
+    (async function ensureProfessor() {
         const user = JSON.parse(sessionStorage.getItem("sigeas_user") || "null");
         if (!user || user.role !== "professor") {
             window.location.href = "./index.html";
         } else {
             Utils.el("profName").textContent = user.name || user.username;
-            window.professorUser = user;
+            professorUser = user;
+            await fetchData();
+            renderTurmasProfessor();
+            showProfessorView("minhasTurmas");
         }
     })();
+
+    async function fetchData() {
+        const headers = { "Authorization": `Bearer ${token}` };
+        cachedData.turmas = await fetch(`${API_URL}/turmas`, { headers }).then(res => res.json());
+        cachedData.alunos = await fetch(`${API_URL}/alunos`, { headers }).then(res => res.json());
+    }
 
     function showProfessorView(view) {
         Utils.qa(".view").forEach(v => v.classList.add("hidden"));
@@ -32,8 +44,8 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderTurmasProfessor() {
         const container = Utils.el("profTurmas");
         container.innerHTML = "";
-        const professorId = window.professorUser.id || "p-1";
-        const turmas = data.turmas.filter(t => t.professorId === professorId);
+        const professorId = professorUser.associated_id || "p-1"; // Assume professorUser.associated_id is the correct ID
+        const turmas = cachedData.turmas.filter(t => t.professorId === professorId);
         if (turmas.length === 0) {
             container.innerHTML = "<div class=\"card-min\"><p>Você não possui turmas alocadas.</p></div>";
             return;
@@ -55,26 +67,31 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    function openChamada(turmaId) {
+    async function openChamada(turmaId) {
         const container = Utils.el("chamadaArea");
-        const turma = data.turmas.find(t => t.id === turmaId);
+        const turma = cachedData.turmas.find(t => t.id === turmaId);
         if (!turma) {
             container.innerHTML = "<p>Turma não encontrada.</p>";
             return;
         }
-        const alunos = data.alunos.filter(a => a.turmaId === turmaId);
+
+        const headers = { "Authorization": `Bearer ${token}` };
+        const alunosDaTurma = cachedData.alunos.filter(a => a.turmaId === turmaId);
+        const presencas = await fetch(`${API_URL}/alunos/${alunosDaTurma[0].id}/presencas`, { headers }).then(res => res.json());
+        cachedData.presencas = presencas;
+
         container.innerHTML = `<h3>${turma.nome} — Registrar Chamada</h3>`;
-        if (alunos.length === 0) {
+        if (alunosDaTurma.length === 0) {
             container.innerHTML += "<p>Sem alunos matriculados.</p>";
             return;
         }
 
         const form = document.createElement("form");
         form.id = "chamadaForm";
-        alunos.forEach(a => {
+        alunosDaTurma.forEach(a => {
             const hoje = new Date().toISOString().slice(0, 10);
-            const presencaAtual = data.presencas.find(p => p.alunoId === a.id && p.turmaId === turmaId && p.data === hoje);
-            const isPresente = presencaAtual ? presencaAtual.presente : true; // Default to present
+            const presencaAtual = cachedData.presencas.find(p => p.alunoId === a.id && p.turmaId === turmaId && p.data === hoje);
+            const isPresente = presencaAtual ? presencaAtual.presente : true;
 
             const row = document.createElement("div");
             row.style.display = "flex";
@@ -93,30 +110,42 @@ document.addEventListener("DOMContentLoaded", () => {
         btnSave.textContent = "Salvar Chamada";
         btnSave.className = "btn";
         btnSave.style.marginTop = "12px";
-        btnSave.addEventListener("click", () => {
+        btnSave.addEventListener("click", async () => {
             const hoje = new Date().toISOString().slice(0, 10);
-            alunos.forEach(a => {
-                const radio = Utils.q(`input[name="presenca-${a.id}"]:checked`);
+            for (const aluno of alunosDaTurma) {
+                const radio = Utils.q(`input[name="presenca-${aluno.id}"]:checked`);
                 const presente = radio ? radio.value === "presente" : false;
-
-                const existingIndex = data.presencas.findIndex(p => p.alunoId === a.id && p.turmaId === turmaId && p.data === hoje);
-                if (existingIndex !== -1) {
-                    data.presencas[existingIndex].presente = presente;
-                } else {
-                    data.presencas.push({ alunoId: a.id, turmaId: turmaId, data: hoje, presente });
+                try {
+                    await fetch(`${API_URL}/chamada`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+                        body: JSON.stringify({ alunoId: aluno.id, turmaId: turmaId, data: hoje, presente })
+                    });
+                } catch (error) {
+                    console.error("Erro ao registrar chamada:", error);
                 }
-            });
-            saveData(data);
+            }
             alert("Chamada registrada.");
+            await fetchData();
+            renderTurmasProfessor();
         });
         container.appendChild(btnSave);
         showProfessorView("chamada");
     }
 
-    function openNotas(turmaId) {
+    async function openNotas(turmaId) {
         const container = Utils.el("notasArea");
-        const turma = data.turmas.find(t => t.id === turmaId);
-        const alunos = data.alunos.filter(a => a.turmaId === turmaId);
+        const turma = cachedData.turmas.find(t => t.id === turmaId);
+        const alunos = cachedData.alunos.filter(a => a.turmaId === turmaId);
+        
+        const headers = { "Authorization": `Bearer ${token}` };
+        if (alunos.length > 0) {
+            const notas = await fetch(`${API_URL}/alunos/${alunos[0].id}/notas`, { headers }).then(res => res.json());
+            cachedData.notas = notas;
+        } else {
+            cachedData.notas = [];
+        }
+
         container.innerHTML = `<h3>${turma.nome} — Lançar Notas</h3>`;
         if (alunos.length === 0) {
             container.innerHTML += "<p>Sem alunos matriculados.</p>";
@@ -130,7 +159,7 @@ document.addEventListener("DOMContentLoaded", () => {
         alunos.forEach(a => {
             for (let b = 1; b <= 2; b++) {
                 const tr = document.createElement("tr");
-                const notaObj = data.notas.find(n => n.alunoId === a.id && n.turmaId === turmaId && n.bimestre === b) || { valor: "", disciplina: turma.nome }; // Default disciplina to turma name
+                const notaObj = cachedData.notas.find(n => n.alunoId === a.id && n.turmaId === turmaId && n.bimestre === b) || { valor: "", disciplina: turma.nome };
                 tr.innerHTML = `<td>${a.nome}</td>
                     <td>${b}</td>
                     <td><input type="text" data-aluno="${a.id}" data-turma="${turmaId}" data-bim="${b}" class="input-disciplina" value="${notaObj.disciplina || turma.nome}"></td>
@@ -145,31 +174,31 @@ document.addEventListener("DOMContentLoaded", () => {
         btnSave.textContent = "Salvar Notas";
         btnSave.className = "btn";
         btnSave.style.marginTop = "12px";
-        btnSave.addEventListener("click", () => {
+        btnSave.addEventListener("click", async () => {
             const notaInputs = Utils.qa("input.input-nota", container);
             const disciplinaInputs = Utils.qa("input.input-disciplina", container);
-
-            notaInputs.forEach((inp, index) => {
+            for (let i = 0; i < notaInputs.length; i++) {
+                const inp = notaInputs[i];
                 const alunoId = inp.dataset.aluno;
                 const turmaId = inp.dataset.turma;
                 const bim = Number(inp.dataset.bim);
                 const valor = parseFloat(inp.value);
-                const disciplina = disciplinaInputs[index].value.trim();
-
-                const existingIndex = data.notas.findIndex(n => n.alunoId === alunoId && n.turmaId === turmaId && n.bimestre === bim);
+                const disciplina = disciplinaInputs[i].value.trim();
                 if (!isNaN(valor) && disciplina) {
-                    if (existingIndex !== -1) {
-                        data.notas[existingIndex].valor = valor;
-                        data.notas[existingIndex].disciplina = disciplina;
-                    } else {
-                        data.notas.push({ alunoId: alunoId, turmaId: turmaId, disciplina: disciplina, bimestre: bim, valor: valor });
+                    try {
+                        await fetch(`${API_URL}/notas`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+                            body: JSON.stringify({ alunoId, turmaId, bimestre: bim, disciplina, valor })
+                        });
+                    } catch (error) {
+                        console.error("Erro ao lançar notas:", error);
                     }
-                } else if (existingIndex !== -1) {
-                    data.notas.splice(existingIndex, 1);
                 }
-            });
-            saveData(data);
+            }
             alert("Notas salvas.");
+            await fetchData();
+            renderTurmasProfessor();
         });
         container.appendChild(btnSave);
         showProfessorView("notas");
@@ -192,7 +221,4 @@ document.addEventListener("DOMContentLoaded", () => {
             showProfessorView(view);
         }
     });
-
-    renderTurmasProfessor();
-    showProfessorView("minhasTurmas");
 });
