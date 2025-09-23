@@ -85,7 +85,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <td>${p.nome}</td>
                 <td>${p.email}</td>
                 <td>${p.telefone || "N/A"}</td>
-                <td>${p.departamento || "N/A"}</td>
+                <td>${p.materia || "N/A"}</td>
                 <td>${turmas}</td>
                 <td>
                     <button class="btn" data-action="edit" data-id="${p.id}">Editar</button>
@@ -101,12 +101,13 @@ document.addEventListener("DOMContentLoaded", () => {
         tbody.innerHTML = "";
         cachedData.alunos.forEach(a => {
             const turma = cachedData.turmas.find(t => t.id === a.turmaId);
+            const dataNascimentoFormatada = a.dataNascimento ? new Date(a.dataNascimento).toLocaleDateString('pt-BR') : "N/A";
             const tr = document.createElement("tr");
             tr.innerHTML = `
                 <td>${a.nome}</td>
                 <td>${a.email}</td>
                 <td>${turma ? turma.nome : "<em>Não matriculado</em>"}</td>
-                <td>${a.dataNascimento || "N/A"}</td>
+                <td>${dataNascimentoFormatada}</td>
                 <td>${a.endereco || "N/A"}</td>
                 <td>
                     <button class="btn" data-action="edit" data-id="${a.id}">Editar</button>
@@ -158,7 +159,7 @@ document.addEventListener("DOMContentLoaded", () => {
             `;
         },
         professores: (id) => {
-            const p = id ? cachedData.professores.find(x => x.id === id) : { nome: "", email: "", telefone: "", departamento: "" };
+            const p = id ? cachedData.professores.find(x => x.id === id) : { nome: "", email: "", telefone: "", materia: "" };
             return `
                 <h3>${id ? "Editar Professor" : "Novo Professor"}</h3>
                 <label>Nome</label>
@@ -167,8 +168,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 <input id="mPemail" value="${p.email || ""}">
                 <label>Telefone</label>
                 <input id="mPtelefone" value="${p.telefone || ""}">
-                <label>Departamento</label>
-                <input id="mDepartamento" value="${p.departamento || ""}">
+                <label>Matéria</label>
+                <input id="mMateria" value="${p.materia || ""}">
                 <div style="margin-top:12px; display:flex; gap:8px; justify-content:flex-end">
                     <button id="saveItem" class="btn-primary" data-type="professores" data-id="${id || ""}">${id ? "Salvar" : "Criar"}</button>
                     <button id="cancelModal" class="btn">Cancelar</button>
@@ -235,12 +236,12 @@ document.addEventListener("DOMContentLoaded", () => {
             const nome = Utils.el("mPnome").value.trim();
             const email = Utils.el("mPemail").value.trim();
             const telefone = Utils.el("mPtelefone").value.trim();
-            const departamento = Utils.el("mDepartamento").value.trim();
+            const materia = Utils.el("mMateria").value.trim();
             if (!nome || !email) {
                 alert("Preencha nome e email.");
                 return;
             }
-            body = { nome, email, telefone, departamento };
+            body = { nome, email, telefone, materia };
             if (!id) body.id = "p-" + Date.now();
         } else if (type === "alunos") {
             const nome = Utils.el("mAnome").value.trim();

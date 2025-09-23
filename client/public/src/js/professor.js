@@ -21,7 +21,6 @@ document.addEventListener("DOMContentLoaded", () => {
     async function fetchData() {
         const headers = { "Authorization": `Bearer ${token}` };
         cachedData.turmas = await fetch(`${API_URL}/turmas`, { headers }).then(res => res.json());
-        cachedData.alunos = await fetch(`${API_URL}/alunos`, { headers }).then(res => res.json());
     }
 
     function showProfessorView(view) {
@@ -44,7 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderTurmasProfessor() {
         const container = Utils.el("profTurmas");
         container.innerHTML = "";
-        const professorId = professorUser.associated_id || "p-1"; // Assume professorUser.associated_id is the correct ID
+        const professorId = professorUser.associated_id || "p-1"; 
         const turmas = cachedData.turmas.filter(t => t.professorId === professorId);
         if (turmas.length === 0) {
             container.innerHTML = "<div class=\"card-min\"><p>Você não possui turmas alocadas.</p></div>";
@@ -76,9 +75,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         const headers = { "Authorization": `Bearer ${token}` };
-        const alunosDaTurma = cachedData.alunos.filter(a => a.turmaId === turmaId);
-        const presencas = await fetch(`${API_URL}/alunos/${alunosDaTurma[0].id}/presencas`, { headers }).then(res => res.json());
-        cachedData.presencas = presencas;
+        const alunosDaTurma = await fetch(`${API_URL}/alunos/turma/${turmaId}`, { headers }).then(res => res.json());
 
         container.innerHTML = `<h3>${turma.nome} — Registrar Chamada</h3>`;
         if (alunosDaTurma.length === 0) {
@@ -86,11 +83,30 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        const presencasPorAluno = {};
+        await Promise.all(
+            alunosDaTurma.map(a => 
+                fetch(`${API_URL}/alunos/${a.id}/presencas`, { headers }).then(res => res.json())
+                    .then(presencas => { presencasPorAluno[a.id] = presencas; })
+            )
+        );
+
         const form = document.createElement("form");
         form.id = "chamadaForm";
+        
+        const bimestreSelector = document.createElement("div");
+        bimestreSelector.innerHTML = `<label>Bimestre: </label>
+                                      <select id="bimestre-select">
+                                          <option value="1">1º Bimestre</option>
+                                          <option value="2">2º Bimestre</option>
+                                          <option value="3">3º Bimestre</option>
+                                          <option value="4">4º Bimestre</option>
+                                      </select>`;
+        form.appendChild(bimestreSelector);
+
         alunosDaTurma.forEach(a => {
             const hoje = new Date().toISOString().slice(0, 10);
-            const presencaAtual = cachedData.presencas.find(p => p.alunoId === a.id && p.turmaId === turmaId && p.data === hoje);
+            const presencaAtual = presencasPorAluno[a.id].find(p => p.data === hoje);
             const isPresente = presencaAtual ? presencaAtual.presente : true;
 
             const row = document.createElement("div");
@@ -103,6 +119,30 @@ document.addEventListener("DOMContentLoaded", () => {
                     <label style="margin-left:8px"><input type="radio" name="presenca-${a.id}" value="falta" ${!isPresente ? "checked" : ""}> Falta</label>
                 </div>`;
             form.appendChild(row);
+            
+            const resumoPresencas = {};
+            presencasPorAluno[a.id].forEach(p => {
+                const bimestre = p.bimestre || 1;
+                if (!resumoPresencas[bimestre]) {
+                    resumoPresencas[bimestre] = { total: 0, presentes: 0 };
+                }
+                resumoPresencas[bimestre].total++;
+                if (p.presente) {
+                    resumoPresencas[bimestre].presentes++;
+                }
+            });
+
+            let resumoHtml = '';
+            for (const bim in resumoPresencas) {
+                const { total, presentes } = resumoPresencas[bim];
+                const perc = Math.round((presentes / total) * 100);
+                resumoHtml += `Bimestre ${bim}: ${presentes}/${total} (${perc}%) `;
+            }
+            if (resumoHtml) {
+                const resumoDiv = document.createElement("div");
+                resumoDiv.innerHTML = `<p class="small-note" style="margin-top: 5px;">${resumoHtml}</p>`;
+                form.appendChild(resumoDiv);
+            }
         });
         container.appendChild(form);
 
@@ -112,6 +152,8 @@ document.addEventListener("DOMContentLoaded", () => {
         btnSave.style.marginTop = "12px";
         btnSave.addEventListener("click", async () => {
             const hoje = new Date().toISOString().slice(0, 10);
+            const bimestreAtual = Utils.el("bimestre-select").value;
+
             for (const aluno of alunosDaTurma) {
                 const radio = Utils.q(`input[name="presenca-${aluno.id}"]:checked`);
                 const presente = radio ? radio.value === "presente" : false;
@@ -119,7 +161,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     await fetch(`${API_URL}/chamada`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-                        body: JSON.stringify({ alunoId: aluno.id, turmaId: turmaId, data: hoje, presente })
+                        body: JSON.stringify({ alunoId: aluno.id, turmaId: turmaId, data: hoje, presente, bimestre: bimestreAtual })
                     });
                 } catch (error) {
                     console.error("Erro ao registrar chamada:", error);
@@ -136,15 +178,16 @@ document.addEventListener("DOMContentLoaded", () => {
     async function openNotas(turmaId) {
         const container = Utils.el("notasArea");
         const turma = cachedData.turmas.find(t => t.id === turmaId);
-        const alunos = cachedData.alunos.filter(a => a.turmaId === turmaId);
-        
+        const alunos = await fetch(`${API_URL}/alunos/turma/${turmaId}`, { headers: { "Authorization": `Bearer ${token}` } }).then(res => res.json());
+
         const headers = { "Authorization": `Bearer ${token}` };
-        if (alunos.length > 0) {
-            const notas = await fetch(`${API_URL}/alunos/${alunos[0].id}/notas`, { headers }).then(res => res.json());
-            cachedData.notas = notas;
-        } else {
-            cachedData.notas = [];
-        }
+        const notasPorAluno = {};
+        await Promise.all(
+            alunos.map(a => 
+                fetch(`${API_URL}/alunos/${a.id}/notas`, { headers }).then(res => res.json())
+                    .then(notas => { notasPorAluno[a.id] = notas; })
+            )
+        );
 
         container.innerHTML = `<h3>${turma.nome} — Lançar Notas</h3>`;
         if (alunos.length === 0) {
@@ -152,23 +195,50 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        const table = document.createElement("table");
-        table.style.width = "100%";
-        table.innerHTML = `<thead><tr><th>Aluno</th><th>Bimestre</th><th>Disciplina</th><th>Nota</th></tr></thead>`;
-        const tbody = document.createElement("tbody");
         alunos.forEach(a => {
-            for (let b = 1; b <= 2; b++) {
+            const alunoNotas = notasPorAluno[a.id];
+            const notasValidas = alunoNotas.filter(n => typeof parseFloat(n.valor) === 'number' && !isNaN(parseFloat(n.valor)));
+            const media = notasValidas.length > 0 ? (notasValidas.reduce((s, x) => s + parseFloat(x.valor), 0) / notasValidas.length).toFixed(2) : "—";
+
+            const studentCard = document.createElement("div");
+            studentCard.className = "card-min";
+            studentCard.style.marginBottom = "1rem";
+            studentCard.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h4>${a.nome}</h4>
+                    <p>Média: <strong>${media}</strong></p>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Bimestre</th>
+                                <th>Disciplina</th>
+                                <th>Nota</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            `;
+            const tbody = studentCard.querySelector("tbody");
+
+            const bimestresComNotas = [...new Set(alunoNotas.map(n => n.bimestre))].sort((a,b) => a-b);
+            const todosOsBimestres = Array.from({length: Math.max(...bimestresComNotas, 2)}, (_, i) => i + 1);
+
+            todosOsBimestres.forEach(b => {
                 const tr = document.createElement("tr");
-                const notaObj = cachedData.notas.find(n => n.alunoId === a.id && n.turmaId === turmaId && n.bimestre === b) || { valor: "", disciplina: turma.nome };
-                tr.innerHTML = `<td>${a.nome}</td>
+                const notaObj = alunoNotas.find(n => n.bimestre === b) || { valor: "", disciplina: turma.nome };
+                
+                tr.innerHTML = `
                     <td>${b}</td>
                     <td><input type="text" data-aluno="${a.id}" data-turma="${turmaId}" data-bim="${b}" class="input-disciplina" value="${notaObj.disciplina || turma.nome}"></td>
-                    <td><input type="number" min="0" max="10" step="0.5" data-aluno="${a.id}" data-turma="${turmaId}" data-bim="${b}" class="input-nota" value="${notaObj.valor || ""}"></td>`;
+                    <td><input type="number" min="0" max="10" step="0.5" data-aluno="${a.id}" data-turma="${turmaId}" data-bim="${b}" class="input-nota" value="${notaObj.valor || ""}"></td>
+                `;
                 tbody.appendChild(tr);
-            }
+            });
+            container.appendChild(studentCard);
         });
-        table.appendChild(tbody);
-        container.appendChild(table);
 
         const btnSave = document.createElement("button");
         btnSave.textContent = "Salvar Notas";

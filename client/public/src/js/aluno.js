@@ -24,14 +24,22 @@ document.addEventListener("DOMContentLoaded", () => {
         const headers = { "Authorization": `Bearer ${token}` };
         
         try {
-            const aluno = await fetch(`${API_URL}/alunos/${alunoId}`, { headers }).then(res => res.json());
-            const turma = await fetch(`${API_URL}/alunos/${alunoId}/turma`, { headers }).then(res => res.json());
-            const presencas = await fetch(`${API_URL}/alunos/${alunoId}/presencas`, { headers }).then(res => res.json());
-            const notas = await fetch(`${API_URL}/alunos/${alunoId}/notas`, { headers }).then(res => res.json());
+            const [aluno, turma, presencas, notas] = await Promise.all([
+                fetch(`${API_URL}/alunos/${alunoId}`, { headers }).then(res => res.json()),
+                fetch(`${API_URL}/alunos/${alunoId}/turma`, { headers }).then(res => res.json()),
+                fetch(`${API_URL}/alunos/${alunoId}/presencas`, { headers }).then(res => res.json()),
+                fetch(`${API_URL}/alunos/${alunoId}/notas`, { headers }).then(res => res.json())
+            ]);
+
+            let dataNascimentoFormatada = aluno.dataNascimento || "N/A";
+            if (dataNascimentoFormatada !== "N/A") {
+                const dataObj = new Date(dataNascimentoFormatada);
+                dataNascimentoFormatada = dataObj.toLocaleDateString('pt-BR');
+            }
 
             Utils.el("alunoNome").textContent = aluno.nome;
             Utils.el("alunoEmail").textContent = aluno.email;
-            Utils.el("alunoDataNascimento").textContent = aluno.dataNascimento || "N/A";
+            Utils.el("alunoDataNascimento").textContent = dataNascimentoFormatada;
             Utils.el("alunoEndereco").textContent = aluno.endereco || "N/A";
 
             const turmaWrap = Utils.el("alunoTurmasList");
@@ -47,25 +55,47 @@ document.addEventListener("DOMContentLoaded", () => {
                 turmaTitle.textContent = "Sem turma matriculada";
                 turmaWrap.innerHTML = "";
             }
-
+            
+            // Lógica para Presenças
             const pWrap = Utils.el("presencas");
+            const pBimestreWrap = Utils.el("presencasBimestre");
             pWrap.innerHTML = "";
+            pBimestreWrap.innerHTML = "";
             if (presencas.length === 0) {
                 pWrap.innerHTML = "<p>Nenhuma presença registrada.</p>";
+                pBimestreWrap.innerHTML = "<p>Nenhum resumo de presença disponível.</p>";
             } else {
+                // Resumo por bimestre
+                const resumoBimestre = {};
+                presencas.forEach(p => {
+                    const bimestre = p.bimestre || 1; // Supondo bimestre 1 se não especificado
+                    if (!resumoBimestre[bimestre]) {
+                        resumoBimestre[bimestre] = { total: 0, presentes: 0 };
+                    }
+                    resumoBimestre[bimestre].total++;
+                    if (p.presente) {
+                        resumoBimestre[bimestre].presentes++;
+                    }
+                });
+                for (const bim in resumoBimestre) {
+                    const { total, presentes } = resumoBimestre[bim];
+                    const perc = Math.round((presentes / total) * 100);
+                    pBimestreWrap.innerHTML += `<p><strong>Bimestre ${bim}:</strong> ${presentes}/${total} (${perc}%)</p>`;
+                }
+                
+                // Registro completo de chamadas
                 const ul = document.createElement("ul");
                 presencas.forEach(p => {
                     const li = document.createElement("li");
-                    li.textContent = `${p.data} — ${p.presente ? "Presente" : "Falta"}`;
+                    const status = p.presente ? "Presente" : "Falta";
+                    const dataFormatada = new Date(p.data).toLocaleDateString('pt-BR');
+                    li.textContent = `Data: ${dataFormatada} — Status: ${status} (Bimestre: ${p.bimestre || "N/A"})`;
                     ul.appendChild(li);
                 });
                 pWrap.appendChild(ul);
-                const total = presencas.length;
-                const presentes = presencas.filter(p => p.presente).length;
-                const perc = Math.round((presentes / total) * 100);
-                pWrap.innerHTML += `<p class="small-note">Comparecimento: ${presentes}/${total} (${perc}%)</p>`;
             }
-
+            
+            // Lógica para Notas
             const notasWrap = Utils.el("notasAluno");
             notasWrap.innerHTML = "";
             if (notas.length === 0) {
@@ -82,7 +112,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
                 tbl.appendChild(tbody);
                 notasWrap.appendChild(tbl);
-                const media = (notas.reduce((s, x) => s + (x.valor || 0), 0) / notas.length).toFixed(2);
+                const media = (notas.reduce((s, x) => s + (parseFloat(x.valor) || 0), 0) / notas.length).toFixed(2);
                 notasWrap.innerHTML += `<p class="small-note">Média atual: <strong>${isNaN(media) ? "—" : media}</strong></p>`;
             }
         } catch (error) {

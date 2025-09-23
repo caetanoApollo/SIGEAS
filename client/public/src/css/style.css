@@ -2,6 +2,7 @@
 
 :root {
     --primary-color: #005A9C;
+    --primary-dark: #004b82;
     --secondary-color: #2E8B57;
     --accent-color: #FF7F50;
     --text-color: #333;
@@ -9,6 +10,8 @@
     --bg-color: #F0F2F5;
     --card-bg: #fff;
     --border-color: #E0E2E5;
+    --danger-color: #dc3545;
+    --danger-dark: #c82333;
 }
 
 * {
@@ -109,7 +112,7 @@ h4 {
 }
 
 .login-card #loginError {
-    color: #D32F2F;
+    color: var(--danger-color);
     text-align: left;
     margin-top: 1rem;
 }
@@ -132,14 +135,22 @@ h4 {
     outline-offset: 3px;
 }
 
-.btn-sm {
-    padding: 0.4rem 1rem;
-    font-size: 0.85rem;
+.btn-primary {
+    background: var(--primary-color);
+    color: #fff;
 }
 
-.btn-lg {
-    padding: 1rem 2rem;
-    font-size: 1.1rem;
+.btn-primary:hover {
+    background: var(--primary-dark);
+}
+
+.btn-danger {
+    background: var(--danger-color);
+    color: #fff;
+}
+
+.btn-danger:hover {
+    background: var(--danger-dark);
 }
 
 .btn::after {
@@ -221,10 +232,18 @@ h4 {
 
 .sidebar-footer {
     text-align: center;
+    margin-top: 2rem;
 }
 
 .sidebar-footer .btn {
     width: 100%;
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #fff;
+}
+
+.sidebar-footer .btn:hover {
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .main-content {
@@ -269,6 +288,7 @@ h4 {
     border-radius: 14px;
     padding: 1.5rem;
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+    margin-bottom: 2rem;
 }
 
 .card-grid {
@@ -278,10 +298,19 @@ h4 {
     margin-top: 1.5rem;
 }
 
+.card-min {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
 table {
     width: 100%;
     border-collapse: collapse;
     min-width: 600px;
+    table-layout: fixed;
 }
 
 .table-wrapper {
@@ -309,6 +338,7 @@ table tbody tr:hover {
 table td {
     padding: 0.8rem 1rem;
     border: 1px solid var(--border-color);
+    word-wrap: break-word;
 }
 
 table .btn {
@@ -350,11 +380,13 @@ table .btn {
 }
 
 .modal-content input,
-.modal-content select {
+.modal-content select,
+.modal-content textarea {
     width: 100%;
     padding: 0.75rem;
     border: 1px solid var(--border-color);
     border-radius: 8px;
+    font-family: 'Inter', sans-serif;
 }
 
 .modal-content .modal-close {
@@ -385,6 +417,30 @@ table .btn {
 .list-unstyled {
     list-style: none;
     padding: 0;
+}
+
+.topbar {
+    background: var(--primary-color);
+    color: #fff;
+    padding: 1rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.topbar h1 {
+    color: #fff;
+    font-size: 1.5rem;
+}
+
+.topbar .btn {
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #fff;
+}
+
+.topbar .btn:hover {
+    background: rgba(255, 255, 255, 0.1);
 }
 
 @media (max-width: 992px) {

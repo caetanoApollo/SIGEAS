@@ -12,5 +12,7 @@ router.delete("/:id", auth, permit("admin"), alunos.remove);
 router.get("/:id/turma", auth, alunos.getTurma);
 router.get("/:id/presencas", auth, alunos.getPresencas);
 router.get("/:id/notas", auth, alunos.getNotas);
+router.get("/turma/:turmaId", auth, alunos.listByTurma);
+router.get("/:id", auth, alunos.get);
 
 module.exports = router;

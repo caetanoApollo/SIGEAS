@@ -55,7 +55,7 @@ CREATE TABLE presencas (
     alunoId VARCHAR(20),
     turmaId VARCHAR(20),
     data DATE,
-    presente TINYINT(1),
+    presente TINYINT,
     PRIMARY KEY (alunoId, turmaId, data),
     FOREIGN KEY (alunoId) REFERENCES alunos(id),
     FOREIGN KEY (turmaId) REFERENCES turmas(id)
@@ -115,5 +115,9 @@ INSERT INTO usuarios (username, password, role, name, associated_id) VALUES
 ('sofia', '$2a$10$w09u7uR5vF6s.5e.w09u7uR5vF6s.5e.w09u7uR5vF6s.5e', 'aluno', 'Sofia (Aluno)', 'a-1'),
 ('gabriel', '$2a$10$w09u7uR5vF6s.5e.w09u7uR5vF6s.5e.w09u7uR5vF6s.5e', 'aluno', 'Gabriel (Aluno)', 'a-2'),
 ('laura', '$2a$10$w09u7uR5vF6s.5e.w09u7uR5vF6s.5e.w09u7uR5vF6s.5e', 'aluno', 'Laura (Aluno)', 'a-3');
+
+UPDATE usuarios SET password = '$2a$10$fdHj1vVq.R0T.k4V4b.FauUfJl7XuKQPQQ89orysWCT.abKt6KBoC' WHERE username = 'admin';
+UPDATE usuarios SET password = '$2a$10$fdHj1vVq.R0T.k4V4b.FauW62US7UNr0uUDUaeGmrPSAtDLgx.CH.' WHERE username IN ('ricardo', 'ana');
+UPDATE usuarios SET password = ' $2a$10$pEyWwlTmLlKEN3GImVFD1.bkchNaJV3tBYBa3bh84lRC/i68jPzHq' WHERE username IN ('sofia', 'gabriel', 'laura');
 
 select * from usuarios;

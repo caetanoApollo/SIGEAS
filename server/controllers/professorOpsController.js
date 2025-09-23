@@ -1,10 +1,10 @@
 const pool = require("../config/db");
 
 exports.registrarChamada = async (req, res) => {
-    const { alunoId, turmaId, data, presente } = req.body;
+    const { alunoId, turmaId, data, presente, bimestre } = req.body;
     await pool.query(
-        "INSERT INTO presencas (alunoId, turmaId, data, presente) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE presente=?",
-        [alunoId, turmaId, data, presente, presente]
+        "INSERT INTO presencas (alunoId, turmaId, data, presente, bimestre) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE presente=?, bimestre=?",
+        [alunoId, turmaId, data, presente, bimestre, presente, bimestre]
     );
     res.json({ ok: true });
 };
