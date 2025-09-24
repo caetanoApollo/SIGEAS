@@ -44,6 +44,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const turmaWrap = Utils.el("alunoTurmasList");
             const turmaTitle = Utils.el("alunoTurmaTitle");
+            const faltasInfo = Utils.el("alunoFaltasInfo");
             if (turma.nome) {
                 turmaTitle.textContent = `Matriculado em: ${turma.nome}`;
                 turmaWrap.innerHTML = `
@@ -51,6 +52,17 @@ document.addEventListener("DOMContentLoaded", () => {
                     <p><strong>Descrição:</strong> ${turma.descricao || "N/A"}</p>
                     <p><strong>Horário:</strong> ${turma.horario || "N/A"}</p>
                 `;
+                
+                const totalFaltas = presencas.filter(p => p.presente === 0).length;
+                const totalAulas = turma.totalAulas || 0;
+                const aulasFaltadas = presencas.length - presencas.filter(p => p.presente === 1).length;
+                const limiteFaltas = Math.ceil(totalAulas * 0.25);
+                
+                faltasInfo.innerHTML = `<p><strong>Faltas:</strong> ${aulasFaltadas} de ${totalAulas} aulas totais.</p>`;
+                if (aulasFaltadas > limiteFaltas) {
+                    faltasInfo.innerHTML += `<p style="color:red; font-weight:bold;">Atenção! Você excedeu o limite de faltas (${limiteFaltas}).</p>`;
+                }
+
             } else {
                 turmaTitle.textContent = "Sem turma matriculada";
                 turmaWrap.innerHTML = "";
@@ -65,10 +77,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 pWrap.innerHTML = "<p>Nenhuma presença registrada.</p>";
                 pBimestreWrap.innerHTML = "<p>Nenhum resumo de presença disponível.</p>";
             } else {
-                // Resumo por bimestre
                 const resumoBimestre = {};
                 presencas.forEach(p => {
-                    const bimestre = p.bimestre || 1; // Supondo bimestre 1 se não especificado
+                    const bimestre = p.bimestre || 1;
                     if (!resumoBimestre[bimestre]) {
                         resumoBimestre[bimestre] = { total: 0, presentes: 0 };
                     }
@@ -83,7 +94,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     pBimestreWrap.innerHTML += `<p><strong>Bimestre ${bim}:</strong> ${presentes}/${total} (${perc}%)</p>`;
                 }
                 
-                // Registro completo de chamadas
                 const ul = document.createElement("ul");
                 presencas.forEach(p => {
                     const li = document.createElement("li");
@@ -101,19 +111,49 @@ document.addEventListener("DOMContentLoaded", () => {
             if (notas.length === 0) {
                 notasWrap.innerHTML = "<p>Sem notas lançadas.</p>";
             } else {
-                const tbl = document.createElement("table");
-                tbl.style.width = "100%";
-                tbl.innerHTML = `<thead><tr><th>Bimestre</th><th>Disciplina</th><th>Nota</th></tr></thead>`;
-                const tbody = document.createElement("tbody");
-                notas.forEach(n => {
-                    const tr = document.createElement("tr");
-                    tr.innerHTML = `<td>${n.bimestre}</td><td>${n.disciplina || "N/A"}</td><td>${n.valor}</td>`;
-                    tbody.appendChild(tr);
-                });
-                tbl.appendChild(tbody);
-                notasWrap.appendChild(tbl);
-                const media = (notas.reduce((s, x) => s + (parseFloat(x.valor) || 0), 0) / notas.length).toFixed(2);
-                notasWrap.innerHTML += `<p class="small-note">Média atual: <strong>${isNaN(media) ? "—" : media}</strong></p>`;
+                const notasPorBimestre = notas.reduce((acc, n) => {
+                    if (!acc[n.bimestre]) acc[n.bimestre] = [];
+                    acc[n.bimestre].push(n);
+                    return acc;
+                }, {});
+
+                let totalPonderadoFinal = 0;
+                let totalPesoFinal = 0;
+                
+                for (const bimestre in notasPorBimestre) {
+                    const notasDoBimestre = notasPorBimestre[bimestre];
+                    let totalPonderadoBimestre = 0;
+                    let totalPesoBimestre = 0;
+
+                    const tbl = document.createElement("table");
+                    tbl.style.width = "100%";
+                    tbl.innerHTML = `<thead><tr><th>Disciplina</th><th>Nota</th><th>Peso</th></tr></thead>`;
+                    const tbody = document.createElement("tbody");
+
+                    notasDoBimestre.forEach(n => {
+                        const tr = document.createElement("tr");
+                        const peso = n.peso || 1.0;
+                        const valor = parseFloat(n.valor) || 0;
+                        totalPonderadoBimestre += valor * peso;
+                        totalPesoBimestre += peso;
+                        
+                        tr.innerHTML = `<td>${n.disciplina || "N/A"}</td><td>${n.valor}</td><td>${peso}</td>`;
+                        tbody.appendChild(tr);
+                    });
+                    
+                    tbl.appendChild(tbody);
+                    notasWrap.innerHTML += `<h4>Bimestre ${bimestre}</h4>`;
+                    notasWrap.appendChild(tbl);
+                    
+                    const mediaBimestre = totalPesoBimestre > 0 ? (totalPonderadoBimestre / totalPesoBimestre).toFixed(2) : "—";
+                    notasWrap.innerHTML += `<p class="small-note">Média do Bimestre: <strong>${mediaBimestre}</strong></p>`;
+
+                    totalPonderadoFinal += totalPonderadoBimestre;
+                    totalPesoFinal += totalPesoBimestre;
+                }
+                
+                const mediaFinal = totalPesoFinal > 0 ? (totalPonderadoFinal / totalPesoFinal).toFixed(2) : "—";
+                Utils.el("mediaFinal").innerHTML = `Média Final: <strong>${mediaFinal}</strong>`;
             }
         } catch (error) {
             console.error("Erro ao buscar dados do aluno:", error);

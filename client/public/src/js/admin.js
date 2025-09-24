@@ -65,6 +65,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <td>${t.curso}</td>
                 <td>${prof ? prof.nome : "<em>Sem professor</em>"}</td>
                 <td>${t.vagas}</td>
+                <td>${t.totalAulas || 0}</td>
                 <td>${t.horario || "N/A"}</td>
                 <td>
                     <button class="btn" data-action="edit" data-id="${t.id}">Editar</button>
@@ -134,7 +135,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const modalTemplates = {
         turmas: (id) => {
-            const turma = id ? cachedData.turmas.find(t => t.id === id) : { nome: "", curso: "", professorId: "", vagas: 20, descricao: "", horario: "" };
+            const turma = id ? cachedData.turmas.find(t => t.id === id) : { nome: "", curso: "", professorId: "", vagas: 20, descricao: "", horario: "", totalAulas: 0 };
             return `
                 <h3>${id ? "Editar Turma" : "Nova Turma"}</h3>
                 <label>Nome</label>
@@ -148,6 +149,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 </select>
                 <label>Vagas</label>
                 <input id="mVagas" type="number" value="${turma.vagas || 20}">
+                <label>Total de Aulas</label>
+                <input id="mTotalAulas" type="number" value="${turma.totalAulas || 0}">
                 <label>Descrição</label>
                 <textarea id="mDescricao">${turma.descricao || ""}</textarea>
                 <label>Horário</label>
@@ -224,13 +227,14 @@ document.addEventListener("DOMContentLoaded", () => {
             const curso = Utils.el("mCurso").value.trim();
             const professorId = Utils.el("mProfessor").value || null;
             const vagas = parseInt(Utils.el("mVagas").value || 20, 10);
+            const totalAulas = parseInt(Utils.el("mTotalAulas").value || 0, 10);
             const descricao = Utils.el("mDescricao").value.trim();
             const horario = Utils.el("mHorario").value.trim();
             if (!nome || !curso) {
                 alert("Preencha nome e curso.");
                 return;
             }
-            body = { nome, curso, professorId, vagas, descricao, horario };
+            body = { nome, curso, professorId, vagas, descricao, horario, totalAulas };
             if (!id) body.id = "t-" + Date.now();
         } else if (type === "professores") {
             const nome = Utils.el("mPnome").value.trim();

@@ -6,5 +6,6 @@ const { permit } = require("../middleware/roles");
 
 router.post("/chamada", auth, permit("professor"), ops.registrarChamada);
 router.post("/notas", auth, permit("professor"), ops.lancarNota);
+router.delete("/notas/:id", auth, permit("professor"), ops.removeNota);
 
 module.exports = router;

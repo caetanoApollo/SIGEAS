@@ -8,20 +8,20 @@ exports.list = async (req, res) => {
 };
 
 exports.create = async (req, res) => {
-    const { id, nome, curso, professorId, vagas, descricao, horario } = req.body;
+    const { id, nome, curso, professorId, vagas, descricao, horario, totalAulas } = req.body;
     await pool.query(
-        "INSERT INTO turmas (id, nome, curso, professorId, vagas, descricao, horario) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        [id, nome, curso, professorId, vagas, descricao, horario]
+        "INSERT INTO turmas (id, nome, curso, professorId, vagas, descricao, horario, totalAulas) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        [id, nome, curso, professorId, vagas, descricao, horario, totalAulas]
     );
     res.status(201).json({ ok: true });
 };
 
 exports.update = async (req, res) => {
     const { id } = req.params;
-    const { nome, curso, professorId, vagas, descricao, horario } = req.body;
+    const { nome, curso, professorId, vagas, descricao, horario, totalAulas } = req.body;
     await pool.query(
-        "UPDATE turmas SET nome=?, curso=?, professorId=?, vagas=?, descricao=?, horario=? WHERE id=?",
-        [nome, curso, professorId, vagas, descricao, horario, id]
+        "UPDATE turmas SET nome=?, curso=?, professorId=?, vagas=?, descricao=?, horario=?, totalAulas=? WHERE id=?",
+        [nome, curso, professorId, vagas, descricao, horario, totalAulas, id]
     );
     res.json({ ok: true });
 };

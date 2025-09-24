@@ -21,6 +21,8 @@ document.addEventListener("DOMContentLoaded", () => {
     async function fetchData() {
         const headers = { "Authorization": `Bearer ${token}` };
         cachedData.turmas = await fetch(`${API_URL}/turmas`, { headers }).then(res => res.json());
+        cachedData.alunos = await fetch(`${API_URL}/alunos`, { headers }).then(res => res.json());
+        cachedData.notas = await fetch(`${API_URL}/alunos/${professorUser.associated_id}/notas`, { headers }).then(res => res.json());
     }
 
     function showProfessorView(view) {
@@ -56,6 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <h4>${t.nome}</h4>
                 <p><strong>Curso:</strong> ${t.curso}</p>
                 <p><strong>Vagas:</strong> ${t.vagas}</p>
+                <p><strong>Total de Aulas:</strong> ${t.totalAulas || 0}</p>
                 <p><strong>Horário:</strong> ${t.horario || "N/A"}</p>
                 <div style="margin-top:8px; display:flex; gap:8px;">
                     <button class="btn" data-action="chamada" data-id="${t.id}">Registrar Chamada</button>
@@ -94,6 +97,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const form = document.createElement("form");
         form.id = "chamadaForm";
         
+        const dateInput = document.createElement("div");
+        dateInput.innerHTML = `<label>Data: </label><input type="date" id="data-chamada" value="${new Date().toISOString().slice(0, 10)}">`;
+        form.appendChild(dateInput);
+
         const bimestreSelector = document.createElement("div");
         bimestreSelector.innerHTML = `<label>Bimestre: </label>
                                       <select id="bimestre-select">
@@ -104,8 +111,9 @@ document.addEventListener("DOMContentLoaded", () => {
                                       </select>`;
         form.appendChild(bimestreSelector);
 
+        const hoje = form.querySelector("#data-chamada").value;
+
         alunosDaTurma.forEach(a => {
-            const hoje = new Date().toISOString().slice(0, 10);
             const presencaAtual = presencasPorAluno[a.id].find(p => p.data === hoje);
             const isPresente = presencaAtual ? presencaAtual.presente : true;
 
@@ -151,17 +159,17 @@ document.addEventListener("DOMContentLoaded", () => {
         btnSave.className = "btn";
         btnSave.style.marginTop = "12px";
         btnSave.addEventListener("click", async () => {
-            const hoje = new Date().toISOString().slice(0, 10);
+            const dataChamada = Utils.el("data-chamada").value;
             const bimestreAtual = Utils.el("bimestre-select").value;
 
             for (const aluno of alunosDaTurma) {
                 const radio = Utils.q(`input[name="presenca-${aluno.id}"]:checked`);
-                const presente = radio ? radio.value === "presente" : false;
+                const presente = radio && radio.value === "presente";
                 try {
                     await fetch(`${API_URL}/chamada`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-                        body: JSON.stringify({ alunoId: aluno.id, turmaId: turmaId, data: hoje, presente, bimestre: bimestreAtual })
+                        body: JSON.stringify({ alunoId: aluno.id, turmaId: turmaId, data: dataChamada, presente, bimestre: bimestreAtual })
                     });
                 } catch (error) {
                     console.error("Erro ao registrar chamada:", error);
@@ -195,100 +203,140 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        alunos.forEach(a => {
+        const notasHtml = alunos.map(a => {
             const alunoNotas = notasPorAluno[a.id];
-            const notasValidas = alunoNotas.filter(n => typeof parseFloat(n.valor) === 'number' && !isNaN(parseFloat(n.valor)));
-            const media = notasValidas.length > 0 ? (notasValidas.reduce((s, x) => s + parseFloat(x.valor), 0) / notasValidas.length).toFixed(2) : "—";
+            
+            let totalNotas = 0;
+            let somaPonderada = 0;
+            alunoNotas.forEach(n => {
+                const valor = parseFloat(n.valor) || 0;
+                const peso = parseFloat(n.peso) || 1;
+                somaPonderada += valor * peso;
+                totalNotas += peso;
+            });
+            const media = totalNotas > 0 ? (somaPonderada / totalNotas).toFixed(2) : "—";
 
-            const studentCard = document.createElement("div");
-            studentCard.className = "card-min";
-            studentCard.style.marginBottom = "1rem";
-            studentCard.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h4>${a.nome}</h4>
-                    <p>Média: <strong>${media}</strong></p>
+            const notasListHtml = alunoNotas.map(n => `
+                <div class="flex-end" style="margin-bottom: 8px;">
+                    <input type="text" value="${n.disciplina}" data-id="${n.avaliacaoId}" data-campo="disciplina">
+                    <input type="number" min="0" max="10" step="0.5" value="${n.valor}" data-id="${n.avaliacaoId}" data-campo="valor">
+                    <input type="number" min="0" max="1" step="0.1" value="${n.peso || 1.0}" data-id="${n.avaliacaoId}" data-campo="peso">
+                    <button class="btn btn-danger" data-action="delete-nota" data-id="${n.avaliacaoId}" data-turma-id="${turmaId}">Excluir</button>
                 </div>
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Bimestre</th>
-                                <th>Disciplina</th>
-                                <th>Nota</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
+            `).join('');
+
+            return `
+                <div class="card-min" style="margin-bottom: 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h4>${a.nome}</h4>
+                        <p>Média: <strong>${media}</strong></p>
+                    </div>
+                    <div>
+                        <div class="flex-end" style="font-weight: bold; margin-bottom: 8px;">
+                            <span style="flex:1;">Disciplina</span>
+                            <span style="width: 80px;">Nota</span>
+                            <span style="width: 80px;">Peso</span>
+                            <span style="width: 80px;">Ações</span>
+                        </div>
+                        ${notasListHtml}
+                        <div class="flex-end" style="margin-top: 1rem;">
+                            <button class="btn" data-action="add-nota" data-aluno-id="${a.id}" data-turma-id="${turmaId}">Adicionar Nota</button>
+                        </div>
+                    </div>
                 </div>
             `;
-            const tbody = studentCard.querySelector("tbody");
+        }).join('');
 
-            const bimestresComNotas = [...new Set(alunoNotas.map(n => n.bimestre))].sort((a,b) => a-b);
-            const todosOsBimestres = Array.from({length: Math.max(...bimestresComNotas, 2)}, (_, i) => i + 1);
-
-            todosOsBimestres.forEach(b => {
-                const tr = document.createElement("tr");
-                const notaObj = alunoNotas.find(n => n.bimestre === b) || { valor: "", disciplina: turma.nome };
-                
-                tr.innerHTML = `
-                    <td>${b}</td>
-                    <td><input type="text" data-aluno="${a.id}" data-turma="${turmaId}" data-bim="${b}" class="input-disciplina" value="${notaObj.disciplina || turma.nome}"></td>
-                    <td><input type="number" min="0" max="10" step="0.5" data-aluno="${a.id}" data-turma="${turmaId}" data-bim="${b}" class="input-nota" value="${notaObj.valor || ""}"></td>
-                `;
-                tbody.appendChild(tr);
-            });
-            container.appendChild(studentCard);
-        });
-
-        const btnSave = document.createElement("button");
-        btnSave.textContent = "Salvar Notas";
-        btnSave.className = "btn";
-        btnSave.style.marginTop = "12px";
-        btnSave.addEventListener("click", async () => {
-            const notaInputs = Utils.qa("input.input-nota", container);
-            const disciplinaInputs = Utils.qa("input.input-disciplina", container);
-            for (let i = 0; i < notaInputs.length; i++) {
-                const inp = notaInputs[i];
-                const alunoId = inp.dataset.aluno;
-                const turmaId = inp.dataset.turma;
-                const bim = Number(inp.dataset.bim);
-                const valor = parseFloat(inp.value);
-                const disciplina = disciplinaInputs[i].value.trim();
-                if (!isNaN(valor) && disciplina) {
-                    try {
-                        await fetch(`${API_URL}/notas`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-                            body: JSON.stringify({ alunoId, turmaId, bimestre: bim, disciplina, valor })
-                        });
-                    } catch (error) {
-                        console.error("Erro ao lançar notas:", error);
-                    }
-                }
-            }
-            alert("Notas salvas.");
-            await fetchData();
-            renderTurmasProfessor();
-        });
-        container.appendChild(btnSave);
+        container.innerHTML += notasHtml;
         showProfessorView("notas");
     }
 
-    document.addEventListener("click", (e) => {
-        const btn = e.target.closest("button[data-action]");
-        if (btn) {
-            const action = btn.dataset.action;
-            const id = btn.dataset.id;
-            if (action === "chamada") openChamada(id);
-            if (action === "notas") openNotas(id);
-        }
-        const navItem = e.target.closest(".sidebar li[data-view]");
-        if (navItem) {
+    Utils.qa(".sidebar li[data-view]").forEach(navItem => {
+        navItem.addEventListener("click", () => {
             const view = navItem.dataset.view;
             if (view === "minhasTurmas") {
                 renderTurmasProfessor();
             }
             showProfessorView(view);
+        });
+    });
+
+    document.addEventListener("click", async (e) => {
+        const btn = e.target.closest("button[data-action]");
+        if (!btn) return;
+        const action = btn.dataset.action;
+        const id = btn.dataset.id;
+        
+        if (action === "chamada") {
+            openChamada(id);
+        } else if (action === "notas") {
+            openNotas(id);
+        } else if (action === "add-nota") {
+            const alunoId = btn.dataset.alunoId;
+            const turmaId = btn.dataset.turmaId;
+            const newNota = {
+                alunoId,
+                turmaId,
+                bimestre: 1,
+                disciplina: "",
+                valor: 0,
+                peso: 1.0
+            };
+            try {
+                const response = await fetch(`${API_URL}/notas`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+                    body: JSON.stringify(newNota)
+                });
+                if (response.ok) {
+                    await fetchData();
+                    await openNotas(turmaId);
+                    alert("Nova nota adicionada. Preencha os campos e salve!");
+                }
+            } catch (error) {
+                console.error("Erro ao adicionar nota:", error);
+            }
+        } else if (action === "delete-nota") {
+            if (!confirm("Deseja realmente excluir esta nota?")) return;
+            try {
+                const turmaId = btn.dataset.turmaId;
+                await fetch(`${API_URL}/notas/${id}`, {
+                    method: "DELETE",
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                await fetchData();
+                await openNotas(turmaId);
+                alert("Nota excluída com sucesso!");
+            } catch (error) {
+                console.error("Erro ao excluir nota:", error);
+            }
+        }
+    });
+
+    Utils.el("notasArea").addEventListener("change", async (e) => {
+        const inp = e.target;
+        if (inp.dataset.campo) {
+            const avaliacaoId = inp.dataset.id;
+            const campo = inp.dataset.campo;
+            const valor = inp.value;
+            const nota = await fetch(`${API_URL}/alunos/${professorUser.associated_id}/notas`, { headers: { "Authorization": `Bearer ${token}` } }).then(res => res.json()).then(notas => notas.find(n => n.avaliacaoId === Number(avaliacaoId)));
+
+            if (nota) {
+                nota[campo] = campo === "valor" || campo === "peso" ? parseFloat(valor) : valor;
+                try {
+                    const response = await fetch(`${API_URL}/notas`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+                        body: JSON.stringify(nota)
+                    });
+                    if (!response.ok) {
+                        const error = await response.json();
+                        console.error("Erro ao salvar nota:", error);
+                    }
+                } catch (error) {
+                    console.error("Erro ao salvar nota:", error);
+                }
+            }
         }
     });
 });
