@@ -45,7 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderTurmasProfessor() {
         const container = Utils.el("profTurmas");
         container.innerHTML = "";
-        const professorId = professorUser.associated_id || "p-1"; 
+        const professorId = professorUser.associated_id || "p-1";
         const turmas = cachedData.turmas.filter(t => t.professorId === professorId);
         if (turmas.length === 0) {
             container.innerHTML = "<div class=\"card-min\"><p>Você não possui turmas alocadas.</p></div>";
@@ -88,7 +88,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const presencasPorAluno = {};
         await Promise.all(
-            alunosDaTurma.map(a => 
+            alunosDaTurma.map(a =>
                 fetch(`${API_URL}/alunos/${a.id}/presencas`, { headers }).then(res => res.json())
                     .then(presencas => { presencasPorAluno[a.id] = presencas; })
             )
@@ -96,7 +96,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const form = document.createElement("form");
         form.id = "chamadaForm";
-        
+
         const dateInput = document.createElement("div");
         dateInput.innerHTML = `<label>Data: </label><input type="date" id="data-chamada" value="${new Date().toISOString().slice(0, 10)}">`;
         form.appendChild(dateInput);
@@ -127,7 +127,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     <label style="margin-left:8px"><input type="radio" name="presenca-${a.id}" value="falta" ${!isPresente ? "checked" : ""}> Falta</label>
                 </div>`;
             form.appendChild(row);
-            
+
             const resumoPresencas = {};
             presencasPorAluno[a.id].forEach(p => {
                 const bimestre = p.bimestre || 1;
@@ -191,7 +191,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const headers = { "Authorization": `Bearer ${token}` };
         const notasPorAluno = {};
         await Promise.all(
-            alunos.map(a => 
+            alunos.map(a =>
                 fetch(`${API_URL}/alunos/${a.id}/notas`, { headers }).then(res => res.json())
                     .then(notas => { notasPorAluno[a.id] = notas; })
             )
@@ -205,7 +205,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const notasHtml = alunos.map(a => {
             const alunoNotas = notasPorAluno[a.id];
-            
+
             let totalNotas = 0;
             let somaPonderada = 0;
             alunoNotas.forEach(n => {
@@ -218,9 +218,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const notasListHtml = alunoNotas.map(n => `
                 <div class="flex-end" style="margin-bottom: 8px;">
-                    <input type="text" value="${n.disciplina}" data-id="${n.avaliacaoId}" data-campo="disciplina">
-                    <input type="number" min="0" max="10" step="0.5" value="${n.valor}" data-id="${n.avaliacaoId}" data-campo="valor">
-                    <input type="number" min="0" max="1" step="0.1" value="${n.peso || 1.0}" data-id="${n.avaliacaoId}" data-campo="peso">
+                    <input type="text" value="${n.disciplina}" data-id="${n.avaliacaoId}" data-campo="disciplina" data-aluno-id="${a.id}" data-turma-id="${turmaId}">
+                    <input type="number" min="0" max="10" step="0.5" value="${n.valor}" data-id="${n.avaliacaoId}" data-campo="valor" data-aluno-id="${a.id}" data-turma-id="${turmaId}">
+                    <input type="number" min="0" max="1" step="0.1" value="${n.peso || 1.0}" data-id="${n.avaliacaoId}" data-campo="peso" data-aluno-id="${a.id}" data-turma-id="${turmaId}">
                     <button class="btn btn-danger" data-action="delete-nota" data-id="${n.avaliacaoId}" data-turma-id="${turmaId}">Excluir</button>
                 </div>
             `).join('');
@@ -266,7 +266,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!btn) return;
         const action = btn.dataset.action;
         const id = btn.dataset.id;
-        
+
         if (action === "chamada") {
             openChamada(id);
         } else if (action === "notas") {
@@ -317,26 +317,45 @@ document.addEventListener("DOMContentLoaded", () => {
         const inp = e.target;
         if (inp.dataset.campo) {
             const avaliacaoId = inp.dataset.id;
+            const alunoId = inp.dataset.alunoId; // <-- NOVO: Pega o ID do aluno do HTML
             const campo = inp.dataset.campo;
             const valor = inp.value;
-            const nota = await fetch(`${API_URL}/alunos/${professorUser.associated_id}/notas`, { headers: { "Authorization": `Bearer ${token}` } }).then(res => res.json()).then(notas => notas.find(n => n.avaliacaoId === Number(avaliacaoId)));
+            const headers = { "Authorization": `Bearer ${token}` };
 
-            if (nota) {
-                nota[campo] = campo === "valor" || campo === "peso" ? parseFloat(valor) : valor;
-                try {
+            if (!alunoId) {
+                console.error("Erro: alunoId não encontrado no campo de input.");
+                return;
+            }
+
+            try {
+
+                const notasAluno = await fetch(`${API_URL}/alunos/${alunoId}/notas`, { headers }).then(res => res.json());
+
+                
+                const nota = notasAluno.find(n => n.avaliacaoId === Number(avaliacaoId));
+
+                if (nota) {
+                    nota[campo] = campo === "valor" || campo === "peso" ? parseFloat(valor) : valor;
+
+                    nota.avaliacaoId = avaliacaoId;
+
                     const response = await fetch(`${API_URL}/notas`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
                         body: JSON.stringify(nota)
                     });
+
                     if (!response.ok) {
                         const error = await response.json();
                         console.error("Erro ao salvar nota:", error);
+                    } else {
+                        console.log("Nota salva com sucesso!");
                     }
-                } catch (error) {
-                    console.error("Erro ao salvar nota:", error);
+                } else {
+                    console.error("Nota não encontrada para o avaliacaoId:", avaliacaoId);
                 }
+            } catch (error) {
+                console.error("Erro ao salvar nota:", error);
             }
         }
-    });
-});
+    })});

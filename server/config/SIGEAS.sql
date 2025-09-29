@@ -3,6 +3,8 @@
 CREATE DATABASE SIGEAS;
 USE SIGEAS;
 
+select * from usuarios;
+
 CREATE TABLE alunos (
     id VARCHAR(20) PRIMARY KEY,
     nome VARCHAR(100) NOT NULL,
@@ -28,6 +30,7 @@ CREATE TABLE turmas (
     vagas INT,
     descricao TEXT,
     horario VARCHAR(50),
+    totalAulas INT DEFAULT 0,
     FOREIGN KEY (professorId) REFERENCES professores(id)
 );
 
@@ -41,12 +44,14 @@ CREATE TABLE matriculas (
 );
 
 CREATE TABLE notas (
+    avaliacaoId INT AUTO_INCREMENT,
     alunoId VARCHAR(20),
     turmaId VARCHAR(20),
     bimestre INT,
     disciplina VARCHAR(100),
     valor DECIMAL(4,2),
-    PRIMARY KEY (alunoId, turmaId, bimestre, disciplina),
+    peso DECIMAL(3,2) DEFAULT 1.0,
+    PRIMARY KEY (avaliacaoId),
     FOREIGN KEY (alunoId) REFERENCES alunos(id),
     FOREIGN KEY (turmaId) REFERENCES turmas(id)
 );
@@ -56,6 +61,7 @@ CREATE TABLE presencas (
     turmaId VARCHAR(20),
     data DATE,
     presente TINYINT,
+    bimestre INT,
     PRIMARY KEY (alunoId, turmaId, data),
     FOREIGN KEY (alunoId) REFERENCES alunos(id),
     FOREIGN KEY (turmaId) REFERENCES turmas(id)
@@ -67,8 +73,17 @@ CREATE TABLE usuarios (
     password VARCHAR(255) NOT NULL,
     role ENUM('admin','professor','aluno') NOT NULL,
     name VARCHAR(100),
-    associated_id VARCHAR(20), -- Pode ser alunoId ou professorId
+    associated_id VARCHAR(20),
     data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE log_auditoria (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id INT,
+    acao VARCHAR(255) NOT NULL,
+    detalhes TEXT,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
 );
 
 INSERT INTO alunos (id, nome, email, dataNascimento, endereco) VALUES
@@ -82,11 +97,11 @@ INSERT INTO professores (id, nome, email, telefone, materia) VALUES
 ('p-2', 'Ana Pereira', 'ana@sigeas.edu', '11998765432', 'Física e Artes'),
 ('p-3', 'Carlos Lima', 'carlos@sigeas.edu', '11976543210', 'História');
 
-INSERT INTO turmas (id, nome, curso, professorId, vagas, descricao, horario) VALUES
-('t-1', 'Matemática A', 'Ensino Médio', 'p-1', 30, 'Introdução à álgebra e geometria.', 'Seg/Qua 08:00-09:30'),
-('t-2', 'História Moderna', 'Ensino Médio', 'p-3', 25, 'Estudo dos principais eventos da era moderna.', 'Ter/Qui 10:00-11:30'),
-('t-3', 'Física Básica', 'Ensino Médio', 'p-2', 28, 'Fundamentos da mecânica e termodinâmica.', 'Seg/Qua 14:00-15:30'),
-('t-4', 'Artes Visuais', 'Ensino Fundamental', 'p-2', 20, 'Introdução ao desenho e pintura.', 'Sex 16:00-17:30');
+INSERT INTO turmas (id, nome, curso, professorId, vagas, descricao, horario, totalAulas) VALUES
+('t-1', 'Matemática A', 'Ensino Médio', 'p-1', 30, 'Introdução à álgebra e geometria.', 'Seg/Qua 08:00-09:30', 20),
+('t-2', 'História Moderna', 'Ensino Médio', 'p-3', 25, 'Estudo dos principais eventos da era moderna.', 'Ter/Qui 10:00-11:30', 20),
+('t-3', 'Física Básica', 'Ensino Médio', 'p-2', 28, 'Fundamentos da mecânica e termodinâmica.', 'Seg/Qua 14:00-15:30', 20),
+('t-4', 'Artes Visuais', 'Ensino Fundamental', 'p-2', 20, 'Introdução ao desenho e pintura.', 'Sex 16:00-17:30', 20);
 
 INSERT INTO matriculas (alunoId, turmaId) VALUES
 ('a-1', 't-1'),
@@ -101,23 +116,17 @@ INSERT INTO notas (alunoId, turmaId, bimestre, disciplina, valor) VALUES
 ('a-1', 't-1', 2, 'Matemática', 9.0),
 ('a-2', 't-1', 2, 'Matemática', 6.5);
 
-INSERT INTO presencas (alunoId, turmaId, data, presente) VALUES
-('a-1', 't-1', '2025-08-01', 1),
-('a-2', 't-1', '2025-08-01', 0),
-('a-3', 't-3', '2025-08-01', 1),
-('a-1', 't-1', '2025-08-03', 1),
-('a-2', 't-1', '2025-08-03', 1);
+INSERT INTO presencas (alunoId, turmaId, data, presente, bimestre) VALUES
+('a-1', 't-1', '2025-08-01', 1, 1),
+('a-2', 't-1', '2025-08-01', 0, 1),
+('a-3', 't-3', '2025-08-01', 1, 1),
+('a-1', 't-1', '2025-08-03', 1, 1),
+('a-2', 't-1', '2025-08-03', 1, 1);
 
 INSERT INTO usuarios (username, password, role, name, associated_id) VALUES
-('admin', '$2a$10$w09u7uR5vF6s.5e.w09u7uR5vF6s.5e.w09u7uR5vF6s.5e', 'admin', 'Beatriz (Admin)', NULL),
-('ricardo', '$2a$10$w09u7uR5vF6s.5e.w09u7uR5vF6s.5e.w09u7uR5vF6s.5e', 'professor', 'Ricardo (Professor)', 'p-1'),
-('ana', '$2a$10$w09u7uR5vF6s.5e.w09u7uR5vF6s.5e.w09u7uR5vF6s.5e', 'professor', 'Ana (Professor)', 'p-2'),
-('sofia', '$2a$10$w09u7uR5vF6s.5e.w09u7uR5vF6s.5e.w09u7uR5vF6s.5e', 'aluno', 'Sofia (Aluno)', 'a-1'),
-('gabriel', '$2a$10$w09u7uR5vF6s.5e.w09u7uR5vF6s.5e.w09u7uR5vF6s.5e', 'aluno', 'Gabriel (Aluno)', 'a-2'),
-('laura', '$2a$10$w09u7uR5vF6s.5e.w09u7uR5vF6s.5e.w09u7uR5vF6s.5e', 'aluno', 'Laura (Aluno)', 'a-3');
-
-UPDATE usuarios SET password = '$2a$10$fdHj1vVq.R0T.k4V4b.FauUfJl7XuKQPQQ89orysWCT.abKt6KBoC' WHERE username = 'admin';
-UPDATE usuarios SET password = '$2a$10$fdHj1vVq.R0T.k4V4b.FauW62US7UNr0uUDUaeGmrPSAtDLgx.CH.' WHERE username IN ('ricardo', 'ana');
-UPDATE usuarios SET password = ' $2a$10$pEyWwlTmLlKEN3GImVFD1.bkchNaJV3tBYBa3bh84lRC/i68jPzHq' WHERE username IN ('sofia', 'gabriel', 'laura');
-
-select * from usuarios;
+('admin', '$2a$10$fdHj1vVq.R0T.k4V4b.FauUfJl7XuKQPQQ89orysWCT.abKt6KBoC', 'admin', 'Beatriz (Admin)', NULL),
+('ricardo', '$2a$10$fdHj1vVq.R0T.k4V4b.FauW62US7UNr0uUDUaeGmrPSAtDLgx.CH.', 'professor', 'Ricardo (Professor)', 'p-1'),
+('ana', '$2a$10$fdHj1vVq.R0T.k4V4b.FauW62US7UNr0uUDUaeGmrPSAtDLgx.CH.', 'professor', 'Ana (Professor)', 'p-2'),
+('sofia', '$2a$10$AyfIb269OeOwjqxc7.Nuw.93vGxcsATdaJn4ZUpyZ/qbsHGl4SYr6', 'aluno', 'Sofia (Aluno)', 'a-1'),
+('gabriel', '$2a$10$AyfIb269OeOwjqxc7.Nuw.93vGxcsATdaJn4ZUpyZ/qbsHGl4SYr6', 'aluno', 'Gabriel (Aluno)', 'a-2'),
+('laura', '$2a$10$AyfIb269OeOwjqxc7.Nuw.93vGxcsATdaJn4ZUpyZ/qbsHGl4SYr6', 'aluno', 'Laura (Aluno)', 'a-3');
